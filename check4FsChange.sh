@@ -1,7 +1,10 @@
 #!/bin/bash
 
-PROGNAME=$(basename $0)
-
+ACTION=
+IN_DIRECTORY=
+IN_FILE_1=
+IN_FILE_2=
+OUT_FILE=
 
 function checkDeps
 {
@@ -19,7 +22,7 @@ function checkDeps
 #Retrieves added files from a diff created by createDiffFileList and stores result to a files only showing the absolute pathes (no '+').
 #$1 diff file created by createDiffFileList
 #$2 file to store added files ad directories
-function createAddedFileList
+function extractAddedFiles
 {
 	while IFS='' read -r line || [[ -n "$line" ]]; do
         if [[ $line == +* ]]
@@ -33,7 +36,7 @@ function createAddedFileList
 #$1 former file list
 #$2 later file list
 #$3 file to store result which shows added (+) and deleted (-) files
-function createDiffFileList
+function compareSnapshots
 {
 	diff -daU 0 $1 $2 | grep -vE '^(@@|\+\+\+|---)' > $3
 }
@@ -41,8 +44,9 @@ function createDiffFileList
 #Scans files in a given directory and stores result in a file.
 #arg1 directory to scan
 #arg2 output file to store file list
-function createFileList
+function createDirectorySnapshot
 {
+	printInfo "Scanning directory $1 and putting output to file $2!"	
 	find $1 -xdev | sort > $2
 }
 
@@ -151,19 +155,24 @@ function checkDeps
 
 #sanitycheck
 
-ACTION=
-IN_DIRECTORY=
-OUT_FILE=
+
 
 checkDeps
 
-while getopts "hc:daso:" options; do
+while getopts "hs:o:c1:2:" options; do
   case $options in
-    c ) IN_DIRECTORY=$OPTARG
-		setAction "createFileList"
+    s ) IN_DIRECTORY=$OPTARG
+		setAction "createDirectorySnapshot"
 		acceptDirectoryOrExit $IN_DIRECTORY
 		;; 
 	
+	c ) setAction "compareSnapshots"
+		;;
+	
+	1 ) IN_FILE_1=$OPTARG
+		;;
+	2 ) IN_FILE_2=$OPTARG
+		;;
 	o ) #out file should be able to be created and read, error if it already exists 
 		OUT_FILE=$OPTARG
 		;;	
@@ -176,12 +185,22 @@ while getopts "hc:daso:" options; do
   esac
 done
 
-if [ -z $ACTION ] || [ -z $IN_DIRECTORY ] || [ -z $OUT_FILE ];then
-	errorAndExit "Unexpected error: One of Action, Input-Directory or out-file not set"
-
+if [ -z $ACTION ] ;then
+	errorAndExit "There has to be exactly one argument s) or c)!"
 fi
 
-printInfo "Executing action $ACTION! on directory $IN_DIRECTORY" 
-#createFileList
+printInfo "Executing action $ACTION on directory $IN_DIRECTORY - Output in $OUT_FILE" 
+
+#local variable and local check or what?
+case $ACTION in
+	"createDirectorySnapshot" ) createDirectorySnapshot $IN_DIRECTORY $OUT_FILE
+								;;
+	"compareSnapshots" ) createDirectorySnapshot $IN_DIRECTORY $OUT_FILE
+									;;
+	*) ;;
+esac
+
+
+
 
 
