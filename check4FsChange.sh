@@ -1,10 +1,6 @@
 #!/bin/bash
 
-ACTION=
-IN_DIRECTORY=
-IN_FILE_1=
-IN_FILE_2=
-OUT_FILE=
+
 
 function checkDeps
 {
@@ -85,7 +81,6 @@ function acceptDirectoryOrExit
 {
 	local directory=$1
 	
-	
 	if [ ! -e $directory ];then
 		errorAndExit "Directory $directory does not exist!"
 	fi
@@ -155,21 +150,27 @@ function checkDeps
 
 #sanitycheck
 
-
+ACTION=
+IN_DIRECTORY=
+IN_FILE_1=
+IN_FILE_2=
+OUT_FILE=
 
 checkDeps
 
-while getopts "hs:o:c1:2:" options; do
+while getopts "hso:c1:2:d:" options; do
   case $options in
-    s ) IN_DIRECTORY=$OPTARG
-		setAction "createDirectorySnapshot"
+    s ) setAction "createDirectorySnapshot"
+		;;
+	d ) IN_DIRECTORY=$OPTARG
 		acceptDirectoryOrExit $IN_DIRECTORY
 		;; 
 	
 	c ) setAction "compareSnapshots"
 		;;
 	
-	1 ) IN_FILE_1=$OPTARG
+	1 ) //existent and readable 
+		IN_FILE_1=$OPTARG
 		;;
 	2 ) IN_FILE_2=$OPTARG
 		;;
@@ -187,6 +188,10 @@ done
 
 if [ -z $ACTION ] ;then
 	errorAndExit "There has to be exactly one argument s) or c)!"
+fi
+
+if [ $ACTION == "createDirectorySnapshot" ] && [ -z $IN_DIRECTORY ] ;then
+	errorAndExit "You need to name a directory with '-d' for action \"$ACTION\"!"
 fi
 
 printInfo "Executing action $ACTION on directory $IN_DIRECTORY - Output in $OUT_FILE" 
