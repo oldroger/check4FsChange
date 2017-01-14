@@ -34,10 +34,27 @@ test_dir_further:
 snapshot_later.txt: test_dir_further
 	./check4FsChange.sh -s -d $(test_dir_abs_path) -o $@
 
+comparison.txt: snapshot_former.txt snapshot_later.txt
+	./check4FsChange.sh -c -f snapshot_former.txt -l snapshot_later.txt  -o $@
+
+comparison_reverted.txt: snapshot_former.txt snapshot_later.txt
+	./check4FsChange.sh -c -f snapshot_later.txt -l snapshot_former.txt  -o $@
+
+comparison_added.txt: snapshot_former.txt snapshot_later.txt
+	./check4FsChange.sh -a -f snapshot_former.txt -l snapshot_later.txt  -o $@
+
+#just take the later file for the former and vice versa
+comparison_deleted.txt:  snapshot_later.txt snapshot_former.txt
+	./check4FsChange.sh -a -f snapshot_former.txt -l snapshot_later.txt  -o $@
+
+check_added_files:
+	comparison.txt
+
 
 check_snapshot_former: snapshot_former.txt
 	test -e snapshot_former.txt
-	test -s snapshot_former.txt 
+	test -s snapshot_former.txt
+
 
 check_snapshot_later: snapshot_later.txt
 	test -e snapshot_later.txt
@@ -54,9 +71,11 @@ bad1:
 
 clean:
 	rm -rf test_dir
-	rm snapshot_former.txt
-	rm snapshot_later.txt
-	 
+	rm -f snapshot_former.txt
+	rm -f snapshot_later.txt
+	rm -f comparison.txt
+	rm -f comparison_reverted.txt
+	rm -f comparison_added.txt
 
 
 

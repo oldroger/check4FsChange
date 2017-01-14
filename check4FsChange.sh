@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+PROGNAME=$0
 
 function checkDeps
 {
@@ -15,18 +15,53 @@ function checkDeps
 	fi
 }
 
-#Retrieves added files from a diff created by createDiffFileList and stores result to a files only showing the absolute pathes (no '+').
-#$1 diff file created by createDiffFileList
-#$2 file to store added files ad directories
-function extractAddedFiles
+#$1 former file list
+#$2 later file list
+#$3 file to store result which shows added (+) and deleted (-) files
+#$4 indicator wether to extract added or deleted files
+function generalCompareSnapshots
 {
+	local outFile=	
+	if [ ! -z $4] && ( [ $4 == "extractDeleted" ] || [ $4 == "extractAdded" ] ); then
+		outFile=/tmp/$3
+	else
+		outFile=$3
+	fi
+	
+	compareSnapshots $1 $2 $outFile
+	
+	if [ ! -z $4];then
+		extractFiles $3 $4 
+		rm $outFile
+	fi
+}
+
+
+#Retrieves added files from a diff created by createDiffFileList and stores result to a files only showing the absolute pathes (no '+').
+#$1 file to store result
+#$2 indicator wether to extract added or deleted files
+function extractFiles
+{			
+	charToFind=	
+	if [ $2 == "extractDeleted" ];then
+		charToFind='-'
+	elif [ $2 == "extractAdded" ];then
+		charToFind='+'
+	fi
+
+	if [ -z charToFind ];then
+		errorAndExit "Internal error occured. Don't what to extract." 	
+	fi
+	
 	while IFS='' read -r line || [[ -n "$line" ]]; do
-        if [[ $line == +* ]]
+        if [[ $line == $charToFind* ]]
         then
                 echo "$line" |  cut -c 2- >> $2
         fi
 	done < "$1"
 }	
+
+
 
 #Compares two files created with createFileList and stores resulting diff in given file.
 #$1 former file list
@@ -34,15 +69,17 @@ function extractAddedFiles
 #$3 file to store result which shows added (+) and deleted (-) files
 function compareSnapshots
 {
+	printInfo "Comparing $1 and $2 - result will be stored in $3!"	
+	
 	diff -daU 0 $1 $2 | grep -vE '^(@@|\+\+\+|---)' > $3
 }
 
 #Scans files in a given directory and stores result in a file.
 #arg1 directory to scan
 #arg2 output file to store file list
-function createDirectorySnapshot
+function createSnapshot
 {
-	printInfo "Scanning directory $1 and putting output to file $2!"	
+	printInfo "Scanning directory $1 for snapshot and putting output to file $2!"	
 	find $1 -xdev | sort > $2
 }
 
@@ -152,35 +189,41 @@ function checkDeps
 
 ACTION=
 IN_DIRECTORY=
-IN_FILE_1=
-IN_FILE_2=
+IN_SNAPSHOT_FORMER=
+IN_SNAPSHOT_LATER=
 OUT_FILE=
+extractAddedFiles=false
+extractDeletedFiles=false
+
 
 checkDeps
 
-while getopts "hso:c1:2:d:" options; do
+while getopts "acd:f:l:ho:sx" options; do
   case $options in
-    s ) setAction "createDirectorySnapshot"
-		;;
+	a ) extractAddedFiles=true
+		setAction "compareSnapshots"
+		;;   
+	c ) setAction "compareSnapshots"
+		;;	
 	d ) IN_DIRECTORY=$OPTARG
 		acceptDirectoryOrExit $IN_DIRECTORY
 		;; 
-	
-	c ) setAction "compareSnapshots"
-		;;
-	
-	1 ) //existent and readable 
-		IN_FILE_1=$OPTARG
-		;;
-	2 ) IN_FILE_2=$OPTARG
+	f ) #existent and readable 
+		IN_SNAPSHOT_FORMER=$OPTARG
+		;;	
+    h ) printUsage
+        exit 0
+        ;;
+	l ) IN_SNAPSHOT_LATER=$OPTARG
 		;;
 	o ) #out file should be able to be created and read, error if it already exists 
 		OUT_FILE=$OPTARG
 		;;	
-
-    h ) printUsage
-        exit 0
-        ;;
+	s ) setAction "createSnapshot"
+		;;	
+	x ) extractDeletedFiles=true
+		setAction "compareSnapshots"
+		;;
    \? ) errorAndExit "Parameters not set correctly!"
 		;;
   esac
@@ -190,18 +233,29 @@ if [ -z $ACTION ] ;then
 	errorAndExit "There has to be exactly one argument s) or c)!"
 fi
 
-if [ $ACTION == "createDirectorySnapshot" ] && [ -z $IN_DIRECTORY ] ;then
+if [ $ACTION == "createSnapshot" ] && [ -z $IN_DIRECTORY ] ;then
 	errorAndExit "You need to name a directory with '-d' for action \"$ACTION\"!"
 fi
 
-printInfo "Executing action $ACTION on directory $IN_DIRECTORY - Output in $OUT_FILE" 
+if 	( [ $ACTION == "compareSnapshots" ] || [ $ACTION == "compareSnapshotsExtractDeleted" ] || [ $ACTION == "compareSnapshotsExtractAdded" ] ) && 
+	( [ -z $IN_SNAPSHOT_FORMER ] && [ -z $IN_SNAPSHOT_LATER ]) ;then
+	errorAndExit "You need to name the former and later snapshots for action \"$ACTION\"!"
+fi
+
+if [ $extractAddedFiles == true ] && [ $extractDeletedFiles == true ];then
+	errorAndExit "Only one of -a (extract added files) or -x (extract deleted files) possible!"
+fi
 
 #local variable and local check or what?
 case $ACTION in
-	"createDirectorySnapshot" ) createDirectorySnapshot $IN_DIRECTORY $OUT_FILE
-								;;
-	"compareSnapshots" ) createDirectorySnapshot $IN_DIRECTORY $OUT_FILE
-									;;
+	"createSnapshot" ) 					createSnapshot $IN_DIRECTORY $OUT_FILE
+										;;
+	"compareSnapshots" ) 				generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE
+										;;
+	"compareSnapshotsExtractDeleted" ) 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE "extractDeleted"
+										;;
+	"compareSnapshotsExtractAdded" ) 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE "extractAdded"
+										;;
 	*) ;;
 esac
 
