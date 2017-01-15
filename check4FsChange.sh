@@ -1,6 +1,13 @@
 #!/bin/bash
 
 PROGNAME=$0
+VERSION=0.1
+
+SNAPSHOT_MODE="snapshot"
+COMPARE_MODE="compare"
+
+EXTRACT_DELETED="extract_deleted"
+EXTRACT_ADDED="extract_added"
 
 function checkDeps
 {
@@ -22,7 +29,7 @@ function checkDeps
 function generalCompareSnapshots
 {
 	local outFile=	
-	if [ ! -z $4] && ( [ $4 == "extractDeleted" ] || [ $4 == "extractAdded" ] ); then
+	if [ ! -z $4] && ( [ $4 == "$EXTRACT_DELETED" ] || [ $4 == "$EXTRACT_ADDED" ] ); then
 		outFile=/tmp/$3
 	else
 		outFile=$3
@@ -90,7 +97,27 @@ function print
 
 function printUsage
 {
-	echo "Usage:"
+	echo -e "Dropbox Snyc v$VERSION"
+    echo -e "Philipp Savun - philipp.savun@gmx.de\n"
+    echo -e "Usage: $0 "
+    echo -e "\nModes:"
+
+    echo -e "\t snapshot -d <DIRECORY> -o <OUTPUT_FILE>"
+    echo -e "\t command  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
+    
+	echo -e "\t delete   <REMOTE_FILE/DIR>"
+    echo -e "\t move     <REMOTE_FILE/DIR> <REMOTE_FILE/DIR>"
+    echo -e "\t copy     <REMOTE_FILE/DIR> <REMOTE_FILE/DIR>"
+    echo -e "\t mkdir    <REMOTE_DIR>"
+    echo -e "\t list     [REMOTE_DIR]"
+    echo -e "\t monitor  [REMOTE_DIR] [TIMEOUT]"
+    echo -e "\t share    <REMOTE_FILE>"
+    echo -e "\t saveurl  <URL> <REMOTE_DIR>"
+    echo -e "\t search   <QUERY>"
+    echo -e "\t info"
+    echo -e "\t space"
+    echo -e "\t unlink"
+
 }
 
 function printInfo
@@ -178,86 +205,113 @@ function checkDeps
 	fi
 }
 
-#function checkNumberOfArguments
-#{
-#	if [ $1 != $2 ];then
-#		errorAndExit "Wrong number of arguments!"
-#	fi	
-#}
 
-#sanitycheck
+function parseAndExecureForSnapshotMode
+{
+	local OUT_FILE=	
+	local IN_DIRECTORY=
+	
+	while getopts "d:ho:" options; do
+  		case $options in
+			d ) IN_DIRECTORY=$OPTARG
+				acceptDirectoryOrExit $IN_DIRECTORY
+				;; 
+			h ) printUsage
+				exit 0
+				;;
+			o ) #out file should be able to be created and read, error if it already exists 
+				OUT_FILE=$OPTARG
+				;;		
+		   \? ) errorAndExit "Parameters for mode $SNAPSHOT_MODE not set correctly!"
+				;;
+	  esac
+	done
+	
+	if [ -z $IN_DIRECTORY ] ;then
+		errorAndExit "You need to name a directory with '-d' for mode \"$MODE\"!"
+	fi
 
-ACTION=
+	createSnapshot $IN_DIRECTORY $OUT_FILE
+}
+
+function parseAndExecureForCompareMode
+{
+	local IN_SNAPSHOT_FORMER=
+	local IN_SNAPSHOT_LATER=
+	local OUT_FILE=	
+	local EXTRACT_MODE=
+	
+
+	while getopts "af:l:ho:x" options; do
+	  case $options in
+		a ) extractAddedFiles=true
+			;;
+		f ) #existent and readable 
+			IN_SNAPSHOT_FORMER=$OPTARG
+			;;	
+		h ) printUsage
+		    exit 0
+		    ;;
+		l ) #existent and readable 
+			IN_SNAPSHOT_LATER=$OPTARG
+			;;
+		o ) #out file should be able to be created and read, error if it already exists 
+			OUT_FILE=$OPTARG
+			;;		
+		x ) extractDeletedFiles=true
+			;;
+	   \? ) errorAndExit "Parameters not set correctly!"
+			;;
+	  esac
+	done
+
+	if [ -z $IN_SNAPSHOT_FORMER ] && [ -z $IN_SNAPSHOT_LATER ] ;then
+		errorAndExit "You need to name the former and later snapshots for mode \"$MODE\"!"
+	fi
+
+	if [ $extractAddedFiles == true ] && [ $extractDeletedFiles == true ];then
+		errorAndExit "Only one of -a (extract added files) or -x (extract deleted files) is possible for mode compare!"
+	fi
+
+	if [ $extractAddedFiles == true ];then
+		$EXTRACT_MODE = $EXTRACT_ADDED
+	else # $extractDeletedFiles == true
+		$EXTRACT_MODE = $EXTRACT_DELETED
+	fi
+
+	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE $EXTRACT_MODE
+}
+
+
+MODE=
 IN_DIRECTORY=
-IN_SNAPSHOT_FORMER=
-IN_SNAPSHOT_LATER=
-OUT_FILE=
+
 extractAddedFiles=false
 extractDeletedFiles=false
 
 
 checkDeps
 
-while getopts "acd:f:l:ho:sx" options; do
-  case $options in
-	a ) extractAddedFiles=true
-		setAction "compareSnapshots"
-		;;   
-	c ) setAction "compareSnapshots"
-		;;	
-	d ) IN_DIRECTORY=$OPTARG
-		acceptDirectoryOrExit $IN_DIRECTORY
-		;; 
-	f ) #existent and readable 
-		IN_SNAPSHOT_FORMER=$OPTARG
-		;;	
-    h ) printUsage
-        exit 0
-        ;;
-	l ) IN_SNAPSHOT_LATER=$OPTARG
-		;;
-	o ) #out file should be able to be created and read, error if it already exists 
-		OUT_FILE=$OPTARG
-		;;	
-	s ) setAction "createSnapshot"
-		;;	
-	x ) extractDeletedFiles=true
-		setAction "compareSnapshots"
-		;;
-   \? ) errorAndExit "Parameters not set correctly!"
-		;;
-  esac
-done
-
-if [ -z $ACTION ] ;then
-	errorAndExit "There has to be exactly one argument s) or c)!"
+if [[ -z "$1" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]] ; then
+	printUsage
+	exit 0
+elif [[ "$1" = $SNAPSHOT_MODE ]] ; then
+	$MODE="$SNAPSHOT_MODE"   
+elif [[ "$1" = $COMPARE_MODE ]] ; then
+	$MODE="$COMPARE_MODE"
+else
+	errorAndExit "No valid program mode named. Must be \"snapshot\" or \"compare\"!"
 fi
 
-if [ $ACTION == "createSnapshot" ] && [ -z $IN_DIRECTORY ] ;then
-	errorAndExit "You need to name a directory with '-d' for action \"$ACTION\"!"
+shift 1
+
+if [ $MODE == $SNAPSHOT_MODE ];then
+	parseAndExecureForSnapshotMode
+else #$MODE == $COMPARE_MODE
+	parseAndExecureForCompareMode
 fi
 
-if 	( [ $ACTION == "compareSnapshots" ] || [ $ACTION == "compareSnapshotsExtractDeleted" ] || [ $ACTION == "compareSnapshotsExtractAdded" ] ) && 
-	( [ -z $IN_SNAPSHOT_FORMER ] && [ -z $IN_SNAPSHOT_LATER ]) ;then
-	errorAndExit "You need to name the former and later snapshots for action \"$ACTION\"!"
-fi
 
-if [ $extractAddedFiles == true ] && [ $extractDeletedFiles == true ];then
-	errorAndExit "Only one of -a (extract added files) or -x (extract deleted files) possible!"
-fi
-
-#local variable and local check or what?
-case $ACTION in
-	"createSnapshot" ) 					createSnapshot $IN_DIRECTORY $OUT_FILE
-										;;
-	"compareSnapshots" ) 				generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE
-										;;
-	"compareSnapshotsExtractDeleted" ) 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE "extractDeleted"
-										;;
-	"compareSnapshotsExtractAdded" ) 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE "extractAdded"
-										;;
-	*) ;;
-esac
 
 
 
