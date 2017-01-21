@@ -1,13 +1,21 @@
 #!/bin/bash
 
-PROGNAME=$0
-VERSION=0.1
+# File name
+readonly PROGNAME=$(basename $0)
+# File name, without the extension
+readonly PROGBASENAME=${PROGNAME%.*}
+# File directory
+readonly PROGDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Arguments
+readonly ARGS="$@"
+# Arguments number
+readonly ARGNUM="$#"
 
-SNAPSHOT_MODE="snapshot"
-COMPARE_MODE="compare"
+readonly VERSION=0.1
 
-EXTRACT_DELETED="extract_deleted"
-EXTRACT_ADDED="extract_added"
+#todo:
+#absolute for snapshot necessary?
+#silent mode/verbose mode
 
 function checkDeps
 {
@@ -86,8 +94,15 @@ function compareSnapshots
 #arg2 output file to store file list
 function createSnapshot
 {
-	printInfo "Scanning directory $1 for snapshot and putting output to file $2!"	
-	find $1 -xdev | sort > $2
+	REDIRECT=	
+	if [[ ! -z $2 ]]; then
+		REDIRECT="> $2"
+		printInfo "Scanning directory $1 for snapshot and putting output to $OUTPUT!"				
+	else
+		printInfo "Scanning directory $1 for snapshot!"
+	fi
+		
+	find $1 -xdev | sort `$REDIRECT`
 }
 
 function print
@@ -99,36 +114,54 @@ function printUsage
 {
 	echo -e "Dropbox Snyc v$VERSION"
     echo -e "Philipp Savun - philipp.savun@gmx.de\n"
-    echo -e "Usage: $0 "
+    echo -e "Usage: $PROGNAME"
     echo -e "\nModes:"
+	echo -e "\tsnapshot: create a file list of your directory."
+	echo -e "\t\tCompare it to another file list of the same directory you"
+	echo -e "\t\tmade earlier or you make later."
+	echo -e "\tcompare: compare two snapshots."
+	echo -e "\t\tYou will get a list with deleted '-' and added '+' files"
+	echo -e "\t\tbetween a former and a later snapshot."
+	echo -e "\t\tAdditionally you can ask to get only a list with added or"
+	echo -e "\t\tdeleleted files. The file names have no prefix '-' or '+'." 
+	echo -e "\nSee below how the two modes are used:"    
+	echo -e "\tsnapshot -d <DIRECORY> -o <OUTPUT_FILE>"
+	echo -e "\t\twhere <DIRECTORY> is the root where you want to make"
+	echo -e "\t\tyour snapshot."
+	echo -e "\t\twhere <OUTPUT_FILE> is the file where the file list with"
+	echo -e "\t\tthe current content of your directory is created."
+	echo -e "\n\tcommand  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
+	echo -e "\t\twhere <FORMER_SNAPSHOT> is the snapshot you made earlier."
+	echo -e "\t\twhere <LATER_SNAPSHOT> is the younger snapshot."
+	echo -e "\t\twhere <OUT_FILE> is the file where the diff output is stored."
+	echo -e "\t\twhere -a indiciates that only files that are in <LATER_SNAPSHOT>" 
+	echo -e "\t\tbut not in <FORMER_SNAPSHOT> (added files) should be"
+	echo -e "\t\tin <OUT_FILE>."
+   	echo -e "\t\twhere -x indiciates that only files that are in"
+	echo -e "\t\t<FORMER_SNAPSHOT> but not in <LATER_SNAPSHOT> (deleted files)"
+	echo -e "\t\tshould be in <OUT_FILE>."
+}
 
-    echo -e "\t snapshot -d <DIRECORY> -o <OUTPUT_FILE>"
-    echo -e "\t command  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
-    
-	echo -e "\t delete   <REMOTE_FILE/DIR>"
-    echo -e "\t move     <REMOTE_FILE/DIR> <REMOTE_FILE/DIR>"
-    echo -e "\t copy     <REMOTE_FILE/DIR> <REMOTE_FILE/DIR>"
-    echo -e "\t mkdir    <REMOTE_DIR>"
-    echo -e "\t list     [REMOTE_DIR]"
-    echo -e "\t monitor  [REMOTE_DIR] [TIMEOUT]"
-    echo -e "\t share    <REMOTE_FILE>"
-    echo -e "\t saveurl  <URL> <REMOTE_DIR>"
-    echo -e "\t search   <QUERY>"
-    echo -e "\t info"
-    echo -e "\t space"
-    echo -e "\t unlink"
 
+function printSnapshotUsage
+{
+	echo -e "Dropbox Snyc v$VERSION"
+    echo -e "Philipp Savun - philipp.savun@gmx.de\n"
+    echo -e "Usage for snapshot feature: $PROGNAME snapshot -d <DIRECORY> -o <OUTPUT_FILE>"  
+	echo -e "\t\twhere <DIRECTORY> is the root where you want to make"
+	echo -e "\t\tyour snapshot."
+	echo -e "\t\twhere <OUTPUT_FILE> is the file where the file list with"
+	echo -e "\t\tthe current content of your directory is created."
 }
 
 function printInfo
 {
-	print "[INFO] $1"
+	print "[INFO] $1" >&2
 }
 
 function errorAndExit
 {
 	print "[ERROR] $1" 	
-	printUsage
 	exit 1	
 }
 
@@ -205,35 +238,60 @@ function checkDeps
 	fi
 }
 
+#argument which parameter is checked
+#parameter to be checked
+function checkForValidParameterOrExit
+{
+	if [[ -z $2 ]]; then
+		errorAndExit "Parameter for argument \"$1\" missing!"
+	elif [[ $2 == -* ]] || [[ $2 == --* ]]; then
+		errorAndExit "Parameter \"$2\" not valid for argument \"$1\"!"
+	fi
+}
 
+#Used example of https://gist.github.com/dgoguerra/9206418
 function parseAndExecureForSnapshotMode
 {
 	local OUT_FILE=	
 	local IN_DIRECTORY=
-	
-	while getopts "d:ho:" options; do
-  		case $options in
-			d ) IN_DIRECTORY=$OPTARG
+
+	if [ "$#" == 0 ];then
+		printSnapshotUsage
+		exit 0
+	fi 
+
+	while [ "$#" -gt 0 ];do
+		case "$1" in
+			-d|--directory )
+				checkForValidParameterOrExit $1 $2
+				IN_DIRECTORY=$2
 				acceptDirectoryOrExit $IN_DIRECTORY
+				shift
 				;; 
-			h ) printUsage
+			-h|--help)
+				printSnapshotUsage
 				exit 0
 				;;
-			o ) #out file should be able to be created and read, error if it already exists 
-				OUT_FILE=$OPTARG
-				;;		
-		   \? ) errorAndExit "Parameters for mode $SNAPSHOT_MODE not set correctly!"
+			-o|--output)
+				OUT_FILE="$2"
+				shift
 				;;
-	  esac
+			-*) errorAndExit "Invalid option '$1'. Use --help to see the valid options!"
+				;;
+			*)	errorAndExit "Invalid word '$1'. Use --help to see the valid options!"
+				;;
+		esac
+		shift
 	done
-	
+
 	if [ -z $IN_DIRECTORY ] ;then
-		errorAndExit "You need to name a directory with '-d' for mode \"$MODE\"!"
+		errorAndExit "You need to name a directory with '-d' for mode \"$MODE\"! Please, see \"$PROGNAME snapshot --help\"!"
 	fi
 
 	createSnapshot $IN_DIRECTORY $OUT_FILE
 }
 
+#Used example of https://gist.github.com/dgoguerra/9206418
 function parseAndExecureForCompareMode
 {
 	local IN_SNAPSHOT_FORMER=
@@ -241,28 +299,36 @@ function parseAndExecureForCompareMode
 	local OUT_FILE=	
 	local EXTRACT_MODE=
 	
+	readonly local EXTRACT_DELETED="extract_deleted"
+	readonly local EXTRACT_ADDED="extract_added"
 
-	while getopts "af:l:ho:x" options; do
-	  case $options in
-		a ) extractAddedFiles=true
-			;;
-		f ) #existent and readable 
-			IN_SNAPSHOT_FORMER=$OPTARG
-			;;	
-		h ) printUsage
-		    exit 0
-		    ;;
-		l ) #existent and readable 
-			IN_SNAPSHOT_LATER=$OPTARG
-			;;
-		o ) #out file should be able to be created and read, error if it already exists 
-			OUT_FILE=$OPTARG
-			;;		
-		x ) extractDeletedFiles=true
-			;;
-	   \? ) errorAndExit "Parameters not set correctly!"
-			;;
-	  esac
+	local extractDeletedFiles=false
+	local extractAddedFiles=false
+	
+	while [ "$#" -gt 0 ];do
+		case "$1" in
+			-a|--added ) extractAddedFiles=true
+				;;
+			-f|--formter ) #existent and readable 
+				IN_SNAPSHOT_FORMER=$OPTARG
+				;;	
+			-h|--help ) printUsage
+				exit 0
+				;;
+			-l|--later ) #existent and readable 
+				IN_SNAPSHOT_LATER=$OPTARG
+				;;
+			-o|--out ) #out file should be able to be created and read, error if it already exists 
+				OUT_FILE=$OPTARG
+				;;		
+			-x|--deleted ) extractDeletedFiles=true
+				;;
+		   	-* ) errorAndExit "Parameters not set correctly!"
+				;;
+			* )
+				;;
+	  	esac
+		shift
 	done
 
 	if [ -z $IN_SNAPSHOT_FORMER ] && [ -z $IN_SNAPSHOT_LATER ] ;then
@@ -282,13 +348,11 @@ function parseAndExecureForCompareMode
 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE $EXTRACT_MODE
 }
 
+readonly SNAPSHOT_MODE="snapshot"
+readonly COMPARE_MODE="compare"
 
 MODE=
 IN_DIRECTORY=
-
-extractAddedFiles=false
-extractDeletedFiles=false
-
 
 checkDeps
 
@@ -296,19 +360,18 @@ if [[ -z "$1" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]] ; then
 	printUsage
 	exit 0
 elif [[ "$1" = $SNAPSHOT_MODE ]] ; then
-	$MODE="$SNAPSHOT_MODE"   
+	MODE="$SNAPSHOT_MODE"   
 elif [[ "$1" = $COMPARE_MODE ]] ; then
-	$MODE="$COMPARE_MODE"
+	MODE="$COMPARE_MODE"
 else
 	errorAndExit "No valid program mode named. Must be \"snapshot\" or \"compare\"!"
 fi
-
-shift 1
+shift
 
 if [ $MODE == $SNAPSHOT_MODE ];then
-	parseAndExecureForSnapshotMode
+	parseAndExecureForSnapshotMode $@
 else #$MODE == $COMPARE_MODE
-	parseAndExecureForCompareMode
+	parseAndExecureForCompareMode $@
 fi
 
 

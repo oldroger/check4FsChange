@@ -7,10 +7,25 @@ CHECK_4_FS_CHANGE = ../../check4FsChange.sh
 TEST_DIR_ABS_PATH:=$(shell realpath test_dir)
 
 
-ALL: good_tests
+ALL: 	prerequesites \
+	 	good_tests \
+		fail_tests 
 
-good_tests: check_snapshot_former check_snapshot_later
-bad_tests: 
+good_tests: good_no_snapshot_arguments \
+			good_snapshot_help_long \
+			good_snapshot_help_short \
+			good_snapshot_no_output_arg
+			#check_snapshot_former check_snapshot_later
+
+fail_tests: fail_snapshot_no_directory_arg \
+			fail_snapshot_invalid_directory_name \
+			fail_snapshot_directory_not_existing \
+			fail_snapshot_no_directory_name \
+			fail_snapshot_directory_name_not_absolute
+
+prerequesites: test_dir_initial
+
+
 
 #how to call mkdir -pv $(ROOT_TEST_DIR)/test_{1,2,3}/test_{a,b,c} within a makefiles? 
 test_dir_initial:	
@@ -32,25 +47,65 @@ test_dir_further:
 
 
 snapshot_former.txt: test_dir_initial
-	$(CHECK_4_FS_CHANGE) -s -d $(TEST_DIR_ABS_PATH) -o $@
+	$(CHECK_4_FS_CHANGE) snapshot -d $(TEST_DIR_ABS_PATH) -o $@
 
 snapshot_later.txt: test_dir_further
-	$(CHECK_4_FS_CHANGE) -s -d $(TEST_DIR_ABS_PATH) -o $@
+	$(CHECK_4_FS_CHANGE) snapshot -d $(TEST_DIR_ABS_PATH) -o $@
 
 
 check_snapshot_former: snapshot_former.txt
-	test -e snapshot_former.txt
-	test -s snapshot_former.txt
-
+	test -e $<
+	test -s $<
+	diff $< reference_snapshot_former.txt 
 
 check_snapshot_later: snapshot_later.txt
-	test -e snapshot_later.txt
-	test -s snapshot_later.txt
+	test -e $<
+	test -s $<
+	diff $< reference_snapshot_later.txt 
 
-bad1: 
-	! $(CHECK_4_FS_CHANGE) -s $(TEST_DIR_ABS_PATH) -o $@ > $(TEST_LOG) 2>&1
-	egrep "\[ERROR\] You need to name a directory with '-d' for action \"createDirectorySnapshot\"!" $(TEST_LOG)
+good_no_snapshot_arguments:
+	$(CHECK_4_FS_CHANGE) snapshot > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_usage.txt
 
+good_snapshot_help_long:
+	$(CHECK_4_FS_CHANGE) snapshot --help > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_usage.txt
+
+good_snapshot_help_short:
+	$(CHECK_4_FS_CHANGE) snapshot -h > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_usage.txt
+
+good_snapshot_no_output_arg:
+	$(CHECK_4_FS_CHANGE) snapshot -d $(realpath test_dir) > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_no_output.txt
+
+fail_snapshot_no_directory_arg:
+	! $(CHECK_4_FS_CHANGE) snapshot -o snapshot.txt > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_no_directory.txt
+
+fail_snapshot_invalid_directory_name:
+	! $(CHECK_4_FS_CHANGE) snapshot -d -o snapshot.txt > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_parameter_for_directory_invalid.txt
+
+fail_snapshot_directory_not_existing:
+	! $(CHECK_4_FS_CHANGE) snapshot -d blablub snapshot.txt > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_directory_not_existing.txt
+	
+fail_snapshot_no_directory_name:
+	! $(CHECK_4_FS_CHANGE) snapshot -d > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_parameter_for_directory_missing.txt
+
+fail_snapshot_directory_name_not_absolute:
+	! $(CHECK_4_FS_CHANGE) snapshot -d test_dir > $(TEST_LOG) 2>&1
+	diff $(TEST_LOG) reference_snapshot_directory_name_not_absolute.txt
+
+
+
+#check with "relatively" arbitrary string, that firs argument needs to be "snaphot" or "compare"
+#general test
+fail_no_valid_command: 
+	! $(CHECK_4_FS_CHANGE) -s $(TEST_DIR_ABS_PATH) > $(TEST_LOG) 2>&1
+	egrep "\[ERROR\] No valid program mode named. Must be \"snapshot\" or \"compare\"!" $(TEST_LOG)
 
 .PHONY: clean 
 
@@ -58,6 +113,7 @@ clean:
 	rm -rf test_dir
 	rm -f snapshot_former.txt
 	rm -f snapshot_later.txt
+	rm -f snapshot.txt
 
 
 
