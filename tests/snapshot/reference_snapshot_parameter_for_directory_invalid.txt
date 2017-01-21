@@ -1,0 +1,1 @@
+check4FsChange.sh: [ERROR] Parameter "-o" not valid for argument "-d"!

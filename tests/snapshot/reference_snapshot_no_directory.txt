@@ -1,0 +1,1 @@
+check4FsChange.sh: [ERROR] You need to name a directory with '-d' for mode "snapshot"! Please, see "check4FsChange.sh snapshot --help"!
