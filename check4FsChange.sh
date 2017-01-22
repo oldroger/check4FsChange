@@ -5,6 +5,7 @@
 #silent mode/verbose mode
 #check for valid files
 #tests for snapshot into output file missing
+#mv some tests from snapshot to general and complete those tests
 
 #program version
 readonly VERSION=0.2
@@ -22,6 +23,8 @@ readonly ARGS="$@"
 # Arguments number
 readonly ARGNUM="$#"
 
+readonly EXTRACT_DELETED="extract_deleted"
+readonly EXTRACT_ADDED="extract_added"
 
 #checks for if all programs used by this one are available on this system
 function checkDeps
@@ -48,8 +51,14 @@ function checkDeps
 #$4 indicator wether to extract added or deleted files
 function generalCompareSnapshots
 {
+	if [[ ! -z $3 ]];then	
+		printInfo "Comparing $1 and $2 - result will be stored in $3!"		
+	else
+		printInfo "Comparing $1 and $2"
+	fi
+	
 	local outFile=	
-	if [ ! -z $4] && ( [ $4 == "$EXTRACT_DELETED" ] || [ $4 == "$EXTRACT_ADDED" ] ); then
+	if [ ! -z $4 ] && ( [ $4 == "$EXTRACT_DELETED" ] || [ $4 == "$EXTRACT_ADDED" ] ); then
 		outFile=/tmp/$3
 	else
 		outFile=$3
@@ -57,9 +66,11 @@ function generalCompareSnapshots
 	
 	compareSnapshots $1 $2 $outFile
 	
-	if [ ! -z $4];then
-		extractFiles $3 $4 
-		rm $outFile
+	if [ ! -z $4 ];then
+		local inputFile=$outFile
+		local outFile=$3	
+		extractFiles $inputFile $4 $outFile
+		#rm $outFile
 	fi
 }
 
@@ -67,27 +78,35 @@ function generalCompareSnapshots
 #Extracts added or deleted files from a snapshot
 #strips preceding added/deleted identifiers '-'/'+' off
 ###
-#parameter $1: file to store result
+#parameter $1: file read input from
 #parameter $2: indicator wether to extract added or deleted files
+#parameter $3: file to store extracted lines
 function extractFiles
 {			
+	set -x	
+	local inputFile=$1
+	local outputFile=$3
+
 	charToFind=	
-	if [ $2 == "extractDeleted" ];then
+	if [[ $2 == $EXTRACT_DELETED ]];then
 		charToFind='-'
-	elif [ $2 == "extractAdded" ];then
+	elif [[ $2 == $EXTRACT_ADDED ]];then
 		charToFind='+'
 	fi
 
-	if [ -z charToFind ];then
-		errorAndExit "Internal error occured. Don't what to extract." 	
+	if [ -z $charToFind ];then
+		errorAndExit "Internal error occured. Don't know what to extract." 	
 	fi
 	
+	#create the file, because in case there was no added line it' irritating if there's nothing at all
+	touch $outputFile
 	while IFS='' read -r line || [[ -n "$line" ]]; do
         if [[ $line == $charToFind* ]]
         then
-                echo "$line" |  cut -c 2- >> $2
+                echo "$line" |  cut -c 2- >> $outputFile
         fi
-	done < "$1"
+	done < "$inputFile"
+	set +x
 }	
 
 
@@ -105,9 +124,6 @@ function compareSnapshots
 	if [[ ! -z $OUTPUT ]]; then
 		REDIRECT="> $OUTPUT"
 		COMMAND="$COMMAND $REDIRECT"
-		printInfo "Comparing $1 and $2 - result will be stored in $OUTPUT!"	
-	else
-		printInfo "Comparing $1 and $2"
 	fi
 
 	eval ${COMMAND}
@@ -325,15 +341,17 @@ function parseAndExecureForSnapshotMode
 }
 
 #Used example of https://gist.github.com/dgoguerra/9206418
+#if not argument besides mode is given, print help
+#otherwise check for valid snapshot file names and check if only one extract option was given
+#if everything is fine, snapshots will be compared and redirected stdin if no output file was named or a file otherwise 
+###
+#parameter 1: program arguments array with the first argument (mode) stripped of
 function parseAndExecureForCompareMode
 {
 	local IN_SNAPSHOT_FORMER=
 	local IN_SNAPSHOT_LATER=
 	local OUT_FILE=	
 	local EXTRACT_MODE=
-	
-	readonly local EXTRACT_DELETED="extract_deleted"
-	readonly local EXTRACT_ADDED="extract_added"
 
 	local extractDeletedFiles=false
 	local extractAddedFiles=false
@@ -350,6 +368,7 @@ function parseAndExecureForCompareMode
 			-f|--former ) #existent and readable 
 				checkForValidParameterOrExit $1 $2
 				IN_SNAPSHOT_FORMER=$2
+				shift
 				;;	
 			-h|--help ) printCompareUsage
 				exit 0
@@ -357,15 +376,18 @@ function parseAndExecureForCompareMode
 			-l|--later ) #existent and readable 
 				checkForValidParameterOrExit $1 $2
 				IN_SNAPSHOT_LATER=$2
+				shift
 				;;
 			-o|--out ) #out file should be able to be created and read, error if it already exists 
-				OUT_FILE=$OPTARG
+				checkForValidParameterOrExit $1 $2
+				OUT_FILE=$2
+				shift
 				;;		
 			-x|--deleted ) extractDeletedFiles=true
 				;;
-		   	-* ) errorAndExit "Parameters not set correctly!"
+		   	-* ) errorAndExit "Invalid option '$1'. Use --help to see the valid options!"
 				;;
-			* )
+			*)	errorAndExit "Invalid word '$1'. Use --help to see the valid options!"
 				;;
 	  	esac
 		shift
@@ -386,6 +408,7 @@ function parseAndExecureForCompareMode
 	fi
 
 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE $EXTRACT_MODE
+
 }
 
 #Checks if the parameter to an argument is not mean as another parameter (beginning with '-' or '--' or is missing

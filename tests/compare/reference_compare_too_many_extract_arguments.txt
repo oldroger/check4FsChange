@@ -1,0 +1,1 @@
+check4FsChange.sh: [ERROR] Only one of -a (extract added files) or -x (extract deleted files) is possible for mode compare!

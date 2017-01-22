@@ -1,11 +1,11 @@
 TEST_DIR = tests
 
-.PHONY: test test_clean
+.PHONY: test clean
 
 test:
 	$(MAKE) -C $(TEST_DIR)
 
-test_clean:
+clean:
 	$(MAKE) -C $(TEST_DIR) clean
 
 
