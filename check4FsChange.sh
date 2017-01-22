@@ -96,12 +96,21 @@ function extractFiles
 ###
 #parameter $1: former snapshot
 #parameter $2: later snapshot
-#parameter $3: file to store result which shows added (+) and deleted (-) files
+#parameter $3: optional file to store result which shows added (+) and deleted (-) files
 function compareSnapshots
-{
-	printInfo "Comparing $1 and $2 - result will be stored in $3!"	
-	
-	diff -daU 0 $1 $2 | grep -vE '^(@@|\+\+\+|---)' > $3
+{	
+	local readonly OUTPUT=$3
+	local readonly COMMAND="diff -daU 0 $1 $2 | grep -vE '^(@@|\+\+\+|---)'"
+	local REDIRECT=		
+	if [[ ! -z $OUTPUT ]]; then
+		REDIRECT="> $OUTPUT"
+		COMMAND="$COMMAND $REDIRECT"
+		printInfo "Comparing $1 and $2 - result will be stored in $OUTPUT!"	
+	else
+		printInfo "Comparing $1 and $2"
+	fi
+
+	eval ${COMMAND}
 }
 
 #Scans files in a given directory
@@ -160,11 +169,25 @@ function printUsage
 function printSnapshotUsage
 {
 	printProgramHeader
-    echo -e "Usage for snapshot feature: $PROGNAME snapshot -d <DIRECORY> -o <OUTPUT_FILE>"  
+    echo -e "Usage for snapshot feature:"
+	echo -e "$PROGNAME snapshot -d <DIRECORY> [-o <OUTPUT_FILE>]"  
 	echo -e "\t\twhere <DIRECTORY> is the root where you want to make"
 	echo -e "\t\tyour snapshot."
-	echo -e "\t\twhere <OUTPUT_FILE> is the file where the snapshot with"
+	echo -e "\t\twhere <OUTPUT_FILE> is the optional file where the snapshot with"
 	echo -e "\t\tthe current content of your directory is created."
+}
+
+function printCompareUsage
+{
+	printProgramHeader
+    echo -e "Usage for compare feature:"
+	echo -e "$PROGNAME compare -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> [-o <OUTPUT_FILE>] [-a|-x]"  
+	echo -e "\t\twhere <FORMER_SNAPSHOT> is the earlier snapshot you made."
+	echo -e "\t\twhere <LATER_SNAPSHOT> is the later snapshot you made."
+	echo -e "\t\twhere <OUTPUT_FILE> is the optional file where the snapshot with"
+	echo -e "\t\tthe current content of your directory is created."
+	echo -e "\t\t-a just lists the added files."
+	echo -e "\t\t-x just lists the deleted files."
 }
 
 #helper function which prints the header
@@ -315,18 +338,25 @@ function parseAndExecureForCompareMode
 	local extractDeletedFiles=false
 	local extractAddedFiles=false
 	
+	if [ "$#" == 0 ];then
+		printCompareUsage
+		exit 0
+	fi 
+
 	while [ "$#" -gt 0 ];do
 		case "$1" in
 			-a|--added ) extractAddedFiles=true
 				;;
-			-f|--formter ) #existent and readable 
-				IN_SNAPSHOT_FORMER=$OPTARG
+			-f|--former ) #existent and readable 
+				checkForValidParameterOrExit $1 $2
+				IN_SNAPSHOT_FORMER=$2
 				;;	
-			-h|--help ) printUsage
+			-h|--help ) printCompareUsage
 				exit 0
 				;;
 			-l|--later ) #existent and readable 
-				IN_SNAPSHOT_LATER=$OPTARG
+				checkForValidParameterOrExit $1 $2
+				IN_SNAPSHOT_LATER=$2
 				;;
 			-o|--out ) #out file should be able to be created and read, error if it already exists 
 				OUT_FILE=$OPTARG
@@ -350,9 +380,9 @@ function parseAndExecureForCompareMode
 	fi
 
 	if [ $extractAddedFiles == true ];then
-		$EXTRACT_MODE = $EXTRACT_ADDED
-	else # $extractDeletedFiles == true
-		$EXTRACT_MODE = $EXTRACT_DELETED
+		EXTRACT_MODE=$EXTRACT_ADDED
+	elif [ $extractDeletedFiles == true ];then
+		EXTRACT_MODE=$EXTRACT_DELETED
 	fi
 
 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE $EXTRACT_MODE

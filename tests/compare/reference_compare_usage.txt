@@ -1,0 +1,8 @@
+Usage for compare feature:
+check4FsChange.sh compare -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> [-o <OUTPUT_FILE>] [-a|-x]
+		where <FORMER_SNAPSHOT> is the earlier snapshot you made.
+		where <LATER_SNAPSHOT> is the later snapshot you made.
+		where <OUTPUT_FILE> is the optional file where the snapshot with
+		the current content of your directory is created.
+		-a just lists the added files.
+		-x just lists the deleted files.
