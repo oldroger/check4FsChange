@@ -1,5 +1,16 @@
 #!/bin/bash
 
+#todo:
+#absolute for snapshot necessary?
+#silent mode/verbose mode
+#check for valid files
+#tests for snapshot into output file missing
+
+#program version
+readonly VERSION=0.1
+#external command line programs used by this one
+readonly BIN_DEPS="realpath getopt"
+
 # File name
 readonly PROGNAME=$(basename $0)
 # File name, without the extension
@@ -11,12 +22,8 @@ readonly ARGS="$@"
 # Arguments number
 readonly ARGNUM="$#"
 
-readonly VERSION=0.1
 
-#todo:
-#absolute for snapshot necessary?
-#silent mode/verbose mode
-
+#checks for if all programs used by this one are available on this system
 function checkDeps
 {
 	which $BIN_DEPS > /dev/null
@@ -30,9 +37,14 @@ function checkDeps
 	fi
 }
 
-#$1 former file list
-#$2 later file list
-#$3 file to store result which shows added (+) and deleted (-) files
+#general function which can execute all compare functions
+#it takes the former snapshot file as as first and the later snapshot as second parameter
+#then it needs a file name to store the result
+#with the last parameter you can optionally say if the result should be just added or deleted files
+###
+#$1 former snapshot
+#$2 later snapshot
+#$3 file to store result
 #$4 indicator wether to extract added or deleted files
 function generalCompareSnapshots
 {
@@ -52,9 +64,11 @@ function generalCompareSnapshots
 }
 
 
-#Retrieves added files from a diff created by createDiffFileList and stores result to a files only showing the absolute pathes (no '+').
-#$1 file to store result
-#$2 indicator wether to extract added or deleted files
+#Extracts added or deleted files from a snapshot
+#strips preceding added/deleted identifiers '-'/'+' off
+###
+#parameter $1: file to store result
+#parameter $2: indicator wether to extract added or deleted files
 function extractFiles
 {			
 	charToFind=	
@@ -79,9 +93,10 @@ function extractFiles
 
 
 #Compares two files created with createFileList and stores resulting diff in given file.
-#$1 former file list
-#$2 later file list
-#$3 file to store result which shows added (+) and deleted (-) files
+###
+#parameter $1: former snapshot
+#parameter $2: later snapshot
+#parameter $3: file to store result which shows added (+) and deleted (-) files
 function compareSnapshots
 {
 	printInfo "Comparing $1 and $2 - result will be stored in $3!"	
@@ -89,9 +104,10 @@ function compareSnapshots
 	diff -daU 0 $1 $2 | grep -vE '^(@@|\+\+\+|---)' > $3
 }
 
-#Scans files in a given directory and stores result in a file.
-#arg1 directory to scan
-#arg2 output file to store file list
+#Scans files in a given directory
+#Optionally redirects to a file or to stdout as default
+#parameter 1: directory to scan
+#parameter 2: output file to store snapshot (optional)
 function createSnapshot
 {
 	REDIRECT=	
@@ -105,19 +121,14 @@ function createSnapshot
 	find $1 -xdev | sort `$REDIRECT`
 }
 
-function print
-{
-	printf "$PROGNAME: $1\n" 1>&2
-}
-
+#prints a usage for the whole program
 function printUsage
 {
-	echo -e "Dropbox Snyc v$VERSION"
-    echo -e "Philipp Savun - philipp.savun@gmx.de\n"
+	printProgramHeader
     echo -e "Usage: $PROGNAME"
     echo -e "\nModes:"
-	echo -e "\tsnapshot: create a file list of your directory."
-	echo -e "\t\tCompare it to another file list of the same directory you"
+	echo -e "\tsnapshot: create a snapshot of your directory."
+	echo -e "\t\tCompare it to another snapshot of the same directory you"
 	echo -e "\t\tmade earlier or you make later."
 	echo -e "\tcompare: compare two snapshots."
 	echo -e "\t\tYou will get a list with deleted '-' and added '+' files"
@@ -128,7 +139,7 @@ function printUsage
 	echo -e "\tsnapshot -d <DIRECORY> -o <OUTPUT_FILE>"
 	echo -e "\t\twhere <DIRECTORY> is the root where you want to make"
 	echo -e "\t\tyour snapshot."
-	echo -e "\t\twhere <OUTPUT_FILE> is the file where the file list with"
+	echo -e "\t\twhere <OUTPUT_FILE> is the file where the snapshot with"
 	echo -e "\t\tthe current content of your directory is created."
 	echo -e "\n\tcommand  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
 	echo -e "\t\twhere <FORMER_SNAPSHOT> is the snapshot you made earlier."
@@ -142,38 +153,52 @@ function printUsage
 	echo -e "\t\tshould be in <OUT_FILE>."
 }
 
-
+#prints the usage of this program in mode "snapshot"
 function printSnapshotUsage
 {
-	echo -e "Dropbox Snyc v$VERSION"
-    echo -e "Philipp Savun - philipp.savun@gmx.de\n"
+	printProgramHeader
     echo -e "Usage for snapshot feature: $PROGNAME snapshot -d <DIRECORY> -o <OUTPUT_FILE>"  
 	echo -e "\t\twhere <DIRECTORY> is the root where you want to make"
 	echo -e "\t\tyour snapshot."
-	echo -e "\t\twhere <OUTPUT_FILE> is the file where the file list with"
+	echo -e "\t\twhere <OUTPUT_FILE> is the file where the snapshot with"
 	echo -e "\t\tthe current content of your directory is created."
 }
 
-function printInfo
+#helper function which prints the header
+function printProgramHeader
 {
-	print "[INFO] $1" >&2
+	echo -e "Dropbox Snyc v$VERSION"
+    echo -e "Philipp Savun - philipp.savun@gmx.de\n"
 }
 
+#prints a message as an info message 
+###
+#parameter 1: the message to be printed
+function printInfo
+{
+	print "[INFO] $1"
+}
+
+#prints a message as an error message and exits with error code
+###
+#parameter 1: the message to be printed
 function errorAndExit
 {
 	print "[ERROR] $1" 	
 	exit 1	
 }
 
-function setAction
+#prints a given message
+#preceds the message with this program name, so root of message can easily be identified
+function print
 {
-	if [ -z $ACTION ];then	
-		ACTION="$1"
-	else
-		errorAndExit "Too many actions!"
-	fi
+	printf "$PROGNAME: $1\n" 1>&2
 }
 
+#checks if a directory can be accepted as argument
+#because it the name exists, is a directory and has reading permissions and if the path to it is absolute
+###
+#parameter 1: directory name to be checked
 function acceptDirectoryOrExit
 {
 	local directory=$1
@@ -190,12 +215,15 @@ function acceptDirectoryOrExit
 		errorAndExit "No reading permission on $directory!"
 	fi
 	
-	#realpath strips the trailing '/' so in case this $direcory had one and realpath stripped it the second check ist done
+	#realpath strips the trailing '/' 
+	#so if a directory name was given with trailing '/' we add it to the check
 	if [ `realpath $directory` != $directory ] && [ `realpath $directory`'/' != $directory ];then
 		errorAndExit "$directory is not absolute - please provide the full path!"
 	fi
 }
 
+#not used at the moment
+#used or get rid of it
 function acceptFileToWriteOrExit
 {
 	local filename=$1
@@ -223,33 +251,12 @@ function acceptFileToWriteOrExit
 	fi
 }
 
-function checkDeps
-{
-	local BIN_DEPS="realpath"
-	
-	which $BIN_DEPS > /dev/null
-	if [[ $? != 0 ]]; then
-		for i in $BIN_DEPS; do
-		    which $i > /dev/null ||
-		        NOT_FOUND="$i $NOT_FOUND"
-		done
-		echo -e "Error: Required program could not be found: $NOT_FOUND"
-		exit 1
-	fi
-}
-
-#argument which parameter is checked
-#parameter to be checked
-function checkForValidParameterOrExit
-{
-	if [[ -z $2 ]]; then
-		errorAndExit "Parameter for argument \"$1\" missing!"
-	elif [[ $2 == -* ]] || [[ $2 == --* ]]; then
-		errorAndExit "Parameter \"$2\" not valid for argument \"$1\"!"
-	fi
-}
-
-#Used example of https://gist.github.com/dgoguerra/9206418
+#Used example of https://gist.github.com/dgoguerra/9206418 for argument checking
+#if not argument besides mode is given, print help
+#otherwise check for directory and optional output file or if the user requested a helping guidance
+#if everything is fine, a snapshot of given directory will be made
+###
+#parameter 1: program arguments array with the first argument (mode) stripped of
 function parseAndExecureForSnapshotMode
 {
 	local OUT_FILE=	
@@ -287,7 +294,7 @@ function parseAndExecureForSnapshotMode
 	if [ -z $IN_DIRECTORY ] ;then
 		errorAndExit "You need to name a directory with '-d' for mode \"$MODE\"! Please, see \"$PROGNAME snapshot --help\"!"
 	fi
-
+	
 	createSnapshot $IN_DIRECTORY $OUT_FILE
 }
 
@@ -348,15 +355,36 @@ function parseAndExecureForCompareMode
 	generalCompareSnapshots $IN_SNAPSHOT_FORMER $IN_SNAPSHOT_LATER $OUT_FILE $EXTRACT_MODE
 }
 
+#Checks if the parameter to an argument is not mean as another parameter (beginning with '-' or '--' or is missing
+###
+#parameter 1: argument which parameter should be checked
+#parameter 2: parameter itself to be checked
+function checkForValidParameterOrExit
+{
+	if [[ -z $2 ]]; then
+		errorAndExit "Parameter for argument \"$1\" missing!"
+	elif [[ $2 == -* ]] || [[ $2 == --* ]]; then
+		errorAndExit "Parameter \"$2\" not valid for argument \"$1\"!"
+	fi
+}
+
+#main routine checks dependencies, then the mode, then executes program dependent of mode
+###
+#main
+
+#all modes used for this program
 readonly SNAPSHOT_MODE="snapshot"
-readonly COMPARE_MODE="compare"
+readonly COMPARE_MODE="compare" #actually not used, but for clarity
 
+#storage for users choice regarding mode
 MODE=
-IN_DIRECTORY=
 
+#check availability of programs used by this script
 checkDeps
 
+
 if [[ -z "$1" ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]] ; then
+	#if no argument or "help" as first argument give user the usage guidance
 	printUsage
 	exit 0
 elif [[ "$1" = $SNAPSHOT_MODE ]] ; then
@@ -366,8 +394,10 @@ elif [[ "$1" = $COMPARE_MODE ]] ; then
 else
 	errorAndExit "No valid program mode named. Must be \"snapshot\" or \"compare\"!"
 fi
+#shift program arguments as the first is mode and is handled
 shift
 
+#execute the program depending on mode
 if [ $MODE == $SNAPSHOT_MODE ];then
 	parseAndExecureForSnapshotMode $@
 else #$MODE == $COMPARE_MODE

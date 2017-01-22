@@ -110,10 +110,11 @@ fail_no_valid_command:
 .PHONY: clean 
 
 clean:
-	rm -rf test_dir
-	rm -f snapshot_former.txt
-	rm -f snapshot_later.txt
-	rm -f snapshot.txt
+	rm -rf test_dir \
+	snapshot_former.txt \
+	snapshot_later.txt \
+	snapshot.txt \
+	test.log
 
 
 
