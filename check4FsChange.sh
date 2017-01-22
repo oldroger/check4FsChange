@@ -7,7 +7,7 @@
 #tests for snapshot into output file missing
 
 #program version
-readonly VERSION=0.1
+readonly VERSION=0.2
 #external command line programs used by this one
 readonly BIN_DEPS="realpath getopt"
 
@@ -110,15 +110,18 @@ function compareSnapshots
 #parameter 2: output file to store snapshot (optional)
 function createSnapshot
 {
-	REDIRECT=	
+	local readonly OUTPUT=$2 	
+	local readonly COMMAND="find $1 -xdev | sort"	
+	local REDIRECT=	
 	if [[ ! -z $2 ]]; then
 		REDIRECT="> $2"
+		COMMAND="$COMMAND $REDIRECT"
 		printInfo "Scanning directory $1 for snapshot and putting output to $OUTPUT!"				
 	else
 		printInfo "Scanning directory $1 for snapshot!"
 	fi
-		
-	find $1 -xdev | sort `$REDIRECT`
+	
+	eval ${COMMAND}
 }
 
 #prints a usage for the whole program

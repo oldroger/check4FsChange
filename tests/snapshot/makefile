@@ -6,7 +6,6 @@ TEST_LOG:=test.log
 CHECK_4_FS_CHANGE = ../../check4FsChange.sh
 TEST_DIR_ABS_PATH:=$(shell realpath test_dir)
 
-
 ALL: 	prerequesites \
 	 	good_tests \
 		fail_tests 
@@ -14,7 +13,8 @@ ALL: 	prerequesites \
 good_tests: good_no_snapshot_arguments \
 			good_snapshot_help_long \
 			good_snapshot_help_short \
-			good_snapshot_no_output_arg
+			good_snapshot_no_output_arg \
+			good_snapshot_all_arguments
 			#check_snapshot_former check_snapshot_later
 
 fail_tests: fail_snapshot_no_directory_arg \
@@ -24,8 +24,6 @@ fail_tests: fail_snapshot_no_directory_arg \
 			fail_snapshot_directory_name_not_absolute
 
 prerequesites: test_dir_initial
-
-
 
 #how to call mkdir -pv $(ROOT_TEST_DIR)/test_{1,2,3}/test_{a,b,c} within a makefiles? 
 test_dir_initial:	
@@ -43,8 +41,6 @@ test_dir_further:
 	$(MKDIR_PV) $(ROOT_TEST_DIR)/test_1/test_c/test_bla
 	$(MKDIR_PV) $(ROOT_TEST_DIR)/test_4/test_a
 	$(MKDIR_PV) $(ROOT_TEST_DIR)/test_1/test_d
-
-
 
 snapshot_former.txt: test_dir_initial
 	$(CHECK_4_FS_CHANGE) snapshot -d $(TEST_DIR_ABS_PATH) -o $@
@@ -65,19 +61,23 @@ check_snapshot_later: snapshot_later.txt
 
 good_no_snapshot_arguments:
 	$(CHECK_4_FS_CHANGE) snapshot > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_snapshot_usage.txt
+	tail -n +4 $(TEST_LOG) | diff reference_snapshot_usage.txt -
 
 good_snapshot_help_long:
 	$(CHECK_4_FS_CHANGE) snapshot --help > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_snapshot_usage.txt
+	tail -n +4 $(TEST_LOG) | diff reference_snapshot_usage.txt -
 
 good_snapshot_help_short:
 	$(CHECK_4_FS_CHANGE) snapshot -h > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_snapshot_usage.txt
+	tail -n +4 $(TEST_LOG) | diff reference_snapshot_usage.txt -
 
-good_snapshot_no_output_arg:
+good_snapshot_no_output_arg: test_dir_initial
 	$(CHECK_4_FS_CHANGE) snapshot -d $(realpath test_dir) > $(TEST_LOG) 2>&1
 	diff $(TEST_LOG) reference_snapshot_no_output.txt
+
+good_snapshot_all_arguments: test_dir_initial
+	$(CHECK_4_FS_CHANGE) snapshot -d $(realpath test_dir) -o snapshot.txt > $(TEST_LOG) 2>&1
+	diff snapshot.txt reference_snapshot_to_file.txt
 
 fail_snapshot_no_directory_arg:
 	! $(CHECK_4_FS_CHANGE) snapshot -o snapshot.txt > $(TEST_LOG) 2>&1
@@ -98,7 +98,6 @@ fail_snapshot_no_directory_name:
 fail_snapshot_directory_name_not_absolute:
 	! $(CHECK_4_FS_CHANGE) snapshot -d test_dir > $(TEST_LOG) 2>&1
 	diff $(TEST_LOG) reference_snapshot_directory_name_not_absolute.txt
-
 
 
 #check with "relatively" arbitrary string, that firs argument needs to be "snaphot" or "compare"

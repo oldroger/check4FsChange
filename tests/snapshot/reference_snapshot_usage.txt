@@ -1,6 +1,3 @@
-Dropbox Snyc v0.1
-Philipp Savun - philipp.savun@gmx.de
-
 Usage for snapshot feature: check4FsChange.sh snapshot -d <DIRECORY> -o <OUTPUT_FILE>
 		where <DIRECTORY> is the root where you want to make
 		your snapshot.
