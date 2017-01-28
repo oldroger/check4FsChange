@@ -1,5 +1,6 @@
-Usage for snapshot feature: check4FsChange.sh snapshot -d <DIRECORY> -o <OUTPUT_FILE>
+Usage for snapshot feature:
+check4FsChange.sh snapshot -d <DIRECORY> [-o <OUTPUT_FILE>]
 		where <DIRECTORY> is the root where you want to make
 		your snapshot.
-		where <OUTPUT_FILE> is the file where the snapshot with
+		where <OUTPUT_FILE> is the optional file where the snapshot with
 		the current content of your directory is created.
