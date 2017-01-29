@@ -1,14 +1,13 @@
-check4FsChange.sh: [INFO] Scanning directory /mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir for snapshot!
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_1
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_1/test_a
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_1/test_b
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_1/test_c
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_2
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_2/test_a
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_2/test_b
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_2/test_c
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_3
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_3/test_a
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_3/test_b
-/mnt/Dropbox/Development/check4FsChange/tests/snapshot/test_dir/test_3/test_c
+test_dir
+test_dir/test_1
+test_dir/test_1/test_a
+test_dir/test_1/test_b
+test_dir/test_1/test_c
+test_dir/test_2
+test_dir/test_2/test_a
+test_dir/test_2/test_b
+test_dir/test_2/test_c
+test_dir/test_3
+test_dir/test_3/test_a
+test_dir/test_3/test_b
+test_dir/test_3/test_c

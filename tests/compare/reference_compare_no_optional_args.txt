@@ -1,5 +1,5 @@
 check4FsChange.sh: [INFO] Comparing snapshot_former.txt and snapshot_later.txt
-+/mnt/Dropbox/Development/check4FsChange/tests/compare/test_dir/test_1/test_c/test_bla
-+/mnt/Dropbox/Development/check4FsChange/tests/compare/test_dir/test_1/test_d
-+/mnt/Dropbox/Development/check4FsChange/tests/compare/test_dir/test_4
-+/mnt/Dropbox/Development/check4FsChange/tests/compare/test_dir/test_4/test_a
++test_dir/test_1/test_c/test_bla
++test_dir/test_1/test_d
++test_dir/test_4
++test_dir/test_4/test_a

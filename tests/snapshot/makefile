@@ -5,6 +5,7 @@ ROOT_TEST_DIR = test_dir
 TEST_LOG:=test.log
 CHECK_4_FS_CHANGE = ../../check4FsChange.sh
 TEST_DIR_ABS_PATH:=$(shell realpath test_dir)
+absToRelPath:=grep   -o -P "^$(CURDIR)/\K.*"
 
 ALL: 	prerequesites \
 	 	good_tests \
@@ -73,11 +74,11 @@ good_snapshot_help_short:
 
 good_snapshot_no_output_arg: test_dir_initial
 	$(CHECK_4_FS_CHANGE) snapshot -d $(realpath test_dir) > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_snapshot_no_output.txt
+	$(absToRelPath) $(TEST_LOG) | diff - reference_snapshot_no_output.txt
 
 good_snapshot_all_arguments: test_dir_initial
 	$(CHECK_4_FS_CHANGE) snapshot -d $(realpath test_dir) -o snapshot.txt > $(TEST_LOG) 2>&1
-	diff snapshot.txt reference_snapshot_to_file.txt
+	$(absToRelPath) snapshot.txt | diff - reference_snapshot_to_file.txt
 
 fail_snapshot_no_directory_arg:
 	! $(CHECK_4_FS_CHANGE) snapshot -o snapshot.txt > $(TEST_LOG) 2>&1

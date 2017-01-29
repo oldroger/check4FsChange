@@ -1,13 +1,14 @@
 .PHONY: clean test
 
 
-#grep   -o -P "^/mnt/Dropbox/Development/\K.*" reference_compare_added_files.txt
 MKDIR_PV = mkdir -pv
 ROOT_TEST_DIR = test_dir
 TEST_LOG:=test.log
 CHECK_4_FS_CHANGE = ../../check4FsChange.sh
 TEST_DIR_ABS_PATH:=$(shell realpath test_dir)
-absToRelPath:=grep   -o -P "^$(CURDIR)/\K.*"
+#absToRelPath:=grep   -o -P "^$(CURDIR)/\K.*"
+absToRelPath:=sed 's!$(CURDIR)/!!'
+
 
 ALL: good_tests fail_tests
 	 	
@@ -54,12 +55,12 @@ snapshot_later.txt: test_dir_further
 check_snapshot_former: snapshot_former.txt
 	test -e $<
 	test -s $<
-	diff $< reference_snapshot_former.txt 
+	$(absToRelPath) $< | diff - reference_snapshot_former.txt 
 
 check_snapshot_later: snapshot_later.txt
 	test -e $<
 	test -s $<
-	diff $< reference_snapshot_later.txt 
+	$(absToRelPath) $< | diff - reference_snapshot_later.txt 
 
 good_no_compare_arguments: prerequesites
 	$(CHECK_4_FS_CHANGE) compare  > $(TEST_LOG) 2>&1
@@ -75,11 +76,11 @@ good_compare_help_long: prerequesites
 
 good_compare_no_optional_args_only_added: prerequesites
 	$(CHECK_4_FS_CHANGE) compare -f snapshot_former.txt -l snapshot_later.txt > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_compare_no_optional_args.txt 
+	$(absToRelPath) $(TEST_LOG) | diff - reference_compare_no_optional_args.txt 
 
 good_compare_no_optional_args_only_deleted: prerequesites
 	$(CHECK_4_FS_CHANGE) compare -f snapshot_later.txt -l snapshot_former.txt > $(TEST_LOG) 2>&1
-	diff $(TEST_LOG) reference_compare_no_optional_args_deleted.txt 
+	$(absToRelPath) $(TEST_LOG) | diff -  reference_compare_no_optional_args_deleted.txt 
 
 good_compare_out_file_added_only_deleted: prerequesites
 	$(CHECK_4_FS_CHANGE) compare -f snapshot_later.txt -l snapshot_former.txt -o added_files.txt -a > $(TEST_LOG) 2>&1
