@@ -1,3 +1,4 @@
+A program which lets you compare a directory from now and from a former time
 Usage for compare feature:
 check4FsChange.sh compare -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> [-o <OUTPUT_FILE>] [-a|-x]
 		where <FORMER_SNAPSHOT> is the earlier snapshot you made.

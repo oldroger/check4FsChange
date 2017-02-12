@@ -6,6 +6,7 @@
 #check for valid files
 #tests for snapshot into output file missing
 #mv some tests from snapshot to general and complete those tests
+#compare two different direcotories with different file times, e.g. .mp3/.flac
 
 #program version
 readonly VERSION=0.2
@@ -169,7 +170,7 @@ function printUsage
 	echo -e "\t\tyour snapshot."
 	echo -e "\t\twhere <OUTPUT_FILE> is the file where the snapshot with"
 	echo -e "\t\tthe current content of your directory is created."
-	echo -e "\n\tcommand  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
+	echo -e "\n\tcompare  -f <FORMER_SNAPSHOT> -l <LATER_SNAPSHOT> -o <OUT_FILE> [-a|-x]"
 	echo -e "\t\twhere <FORMER_SNAPSHOT> is the snapshot you made earlier."
 	echo -e "\t\twhere <LATER_SNAPSHOT> is the younger snapshot."
 	echo -e "\t\twhere <OUT_FILE> is the file where the diff output is stored."
@@ -209,8 +210,9 @@ function printCompareUsage
 #helper function which prints the header
 function printProgramHeader
 {
-	echo -e "Dropbox Snyc v$VERSION"
+	echo -e "check4FsChange v$VERSION"
     echo -e "Philipp Savun - philipp.savun@gmx.de\n"
+	echo -e "A program which lets you compare a directory from now and from a former time"
 }
 
 #prints a message as an info message 
